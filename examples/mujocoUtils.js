@@ -445,15 +445,16 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
             rgbaArray[(p * 4) + 3] = 1.0;
           }
           texture = new THREE.DataTexture(rgbaArray, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
-          if (texId == 2) {
-            texture.repeat = new THREE.Vector2(50, 50);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
+          // Read texture repeat from the model's material data
+          let texRepeatU = model.mat_texrepeat[(matId * 2) + 0];
+          let texRepeatV = model.mat_texrepeat[(matId * 2) + 1];
+          if (texRepeatU > 1 || texRepeatV > 1) {
+            texture.repeat = new THREE.Vector2(texRepeatU, texRepeatV);
           } else {
             texture.repeat = new THREE.Vector2(1, 1);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
           }
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
 
           texture.needsUpdate = true;
         }
@@ -478,7 +479,7 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
 
       let mesh = new THREE.Mesh();
       if (type == 0) {
-        mesh = new Reflector( new THREE.PlaneGeometry( 100, 100 ), { clipBias: 0.003,texture: texture } );
+        mesh = new THREE.Mesh(new THREE.PlaneGeometry( 100, 100 ), material);
         mesh.rotateX( - Math.PI / 2 );
       } else {
         mesh = new THREE.Mesh(geometry, material);

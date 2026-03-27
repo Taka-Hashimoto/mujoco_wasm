@@ -43,8 +43,16 @@ export class MuJoCoDemo {
     this.keys = {};
     this.forward = 0.0;
     this.turn = 0.0;
-    document.addEventListener('keydown', (e) => { this.keys[e.code] = true;  });
-    document.addEventListener('keyup',   (e) => { this.keys[e.code] = false; });
+    document.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+      // Blur GUI inputs so keyboard events always reach the simulation
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+        document.activeElement.blur();
+      }
+    });
+    document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    // Also clear keys when window loses focus (e.g. iframe → parent)
+    window.addEventListener('blur', () => { this.keys = {}; });
 
     this.container = document.createElement( 'div' );
     document.body.appendChild( this.container );
