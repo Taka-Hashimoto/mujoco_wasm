@@ -283,7 +283,7 @@ export function setupGUI(parentContext) {
   actionInnerHTML += 'Reset free camera<br>';
   keyInnerHTML += 'Ctrl A<br>';
 
-  parentContext.gui.open();
+  parentContext.gui.close();
 }
 
 
