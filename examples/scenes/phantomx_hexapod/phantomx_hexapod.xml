@@ -33,8 +33,8 @@
     <mesh name="tibia_l" file="tibia_l.STL"/>
     <mesh name="tibia_l_coll" file="tibia_l_coll.STL"/>
     <texture type="2d" name="grid" builtin="checker" width="512" height="512"
-             rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4"/>
-    <material name="grid" texture="grid" texrepeat="8 8" reflectance="0.2"/>
+             rgb1="0.35 0.35 0.35" rgb2="0.45 0.45 0.45"/>
+    <material name="grid" texture="grid" texrepeat="20 20" reflectance="0.2"/>
   </asset>
 
   <worldbody>
