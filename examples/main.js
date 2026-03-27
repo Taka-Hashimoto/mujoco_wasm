@@ -253,9 +253,11 @@ export class MuJoCoDemo {
         // Apply CPG control targets for hexapod locomotion
         if (this.cpgEnabled && this.cpg && this.model.nu === 18) {
           if (this.simTime < 2.0) {
-            // Hold default pose (ctrl = 0) to let the robot settle on the ground
+            // Settling: hold current joint positions so actuators exert no force
             let ctrl = this.simulation.ctrl;
-            for (let i = 0; i < 18; i++) { ctrl[i] = 0.0; }
+            let qpos = this.simulation.qpos;
+            let nqfree = 7; // skip free-joint DOFs (3 pos + 4 quat)
+            for (let i = 0; i < 18; i++) { ctrl[i] = qpos[nqfree + i]; }
           } else {
             let isMoving = Math.abs(this.forward) > 0.0 || Math.abs(this.turn) > 0.0;
             if (isMoving) {
@@ -265,9 +267,11 @@ export class MuJoCoDemo {
               let ctrl = this.simulation.ctrl;
               for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
             } else {
-              // Idle: hold default pose
+              // Idle: hold current joint positions to prevent oscillation
               let ctrl = this.simulation.ctrl;
-              for (let i = 0; i < 18; i++) { ctrl[i] = 0.0; }
+              let qpos = this.simulation.qpos;
+              let nqfree = 7;
+              for (let i = 0; i < 18; i++) { ctrl[i] = qpos[nqfree + i]; }
             }
           }
         }
