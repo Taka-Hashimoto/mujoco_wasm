@@ -44,7 +44,7 @@
     <geom name="floor" type="plane" size="5 5 0.1" material="grid"
           contype="1" conaffinity="1"/>
 
-    <body name="MP_BODY" pos="0 0 0.15">
+    <body name="MP_BODY" pos="0 0 0.20">
       <freejoint name="root"/>
       <camera name="track" pos="0.5 -0.8 0.4" xyaxes="0.866 0.5 0 -0.2 0.35 0.92"
               mode="trackcom"/>
@@ -236,6 +236,6 @@
   </sensor>
 
   <keyframe>
-    <key name="home" qpos="0 0 0.15 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl=" 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
+    <key name="home" qpos="0 0 0.20 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl=" 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
   </keyframe>
 </mujoco>
