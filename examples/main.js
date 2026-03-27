@@ -4,28 +4,33 @@ import { GUI              } from '../node_modules/three/examples/jsm/libs/lil-gu
 import { OrbitControls    } from '../node_modules/three/examples/jsm/controls/OrbitControls.js';
 import { DragStateManager } from './utils/DragStateManager.js';
 import { setupGUI, downloadExampleScenesFolder, loadSceneFromURL, getPosition, getQuaternion, toMujocoPos, standardNormal } from './mujocoUtils.js';
+import { HexapodCPG, GAITS } from './hexapodCPG.js';
 import   load_mujoco        from '../dist/mujoco_wasm.js';
 
 // Load the MuJoCo Module
 const mujoco = await load_mujoco();
 
 // Set up Emscripten's Virtual File System
-var initialScene = "humanoid.xml";
+// Boot with humanoid (no mesh dependencies), then switch to hexapod after all assets load.
+var bootScene   = "humanoid.xml";
+var initialScene = "phantomx_hexapod/phantomx_hexapod.xml";
 mujoco.FS.mkdir('/working');
 mujoco.FS.mount(mujoco.MEMFS, { root: '.' }, '/working');
-mujoco.FS.writeFile("/working/" + initialScene, await(await fetch("./examples/scenes/" + initialScene)).text());
+mujoco.FS.writeFile("/working/" + bootScene, await(await fetch("./examples/scenes/" + bootScene)).text());
 
 export class MuJoCoDemo {
   constructor() {
     this.mujoco = mujoco;
 
-    // Load in the state from XML
-    this.model      = new mujoco.Model("/working/" + initialScene);
+    // Load in the state from XML (boot scene for initial setup)
+    this.model      = new mujoco.Model("/working/" + bootScene);
     this.state      = new mujoco.State(this.model);
     this.simulation = new mujoco.Simulation(this.model, this.state);
 
     // Define Random State Variables
-    this.params = { scene: initialScene, paused: false, help: false, ctrlnoiserate: 0.0, ctrlnoisestd: 0.0, keyframeNumber: 0 };
+    this.params = { scene: initialScene, paused: false, help: false, ctrlnoiserate: 0.0, ctrlnoisestd: 0.0, keyframeNumber: 0, cpgEnabled: true, gait: "tripod" };
+    this.cpg = new HexapodCPG("tripod");
+    this.cpgEnabled = true;
     this.mujoco_time = 0.0;
     this.bodies  = {}, this.lights = {};
     this.tmpVec  = new THREE.Vector3();
@@ -40,7 +45,7 @@ export class MuJoCoDemo {
 
     this.camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.001, 100 );
     this.camera.name = 'PerspectiveCamera';
-    this.camera.position.set(2.0, 1.7, 1.7);
+    this.camera.position.set(0.5, 0.4, 0.5);
     this.scene.add(this.camera);
 
     this.scene.background = new THREE.Color(0.15, 0.25, 0.35);
@@ -60,7 +65,7 @@ export class MuJoCoDemo {
     this.container.appendChild( this.renderer.domElement );
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 0.7, 0);
+    this.controls.target.set(0, 0.1, 0);
     this.controls.panSpeed = 2;
     this.controls.zoomSpeed = 1;
     this.controls.enableDamping = true;
@@ -78,8 +83,8 @@ export class MuJoCoDemo {
     // Download the the examples to MuJoCo's virtual file system
     await downloadExampleScenesFolder(mujoco);
 
-    // Initialize the three.js Scene using the .xml Model in initialScene
-    [this.model, this.state, this.simulation, this.bodies, this.lights] =  
+    // Load the hexapod scene (all mesh assets are now available in the virtual FS)
+    [this.model, this.state, this.simulation, this.bodies, this.lights] =
       await loadSceneFromURL(mujoco, initialScene, this);
 
     this.gui = new GUI();
@@ -129,6 +134,13 @@ export class MuJoCoDemo {
           this.simulation.applyForce(force.x, force.y, force.z, 0, 0, 0, point.x, point.y, point.z, bodyID);
 
           // TODO: Apply pose perturbations (mocap bodies only).
+        }
+
+        // Apply CPG control targets for hexapod locomotion
+        if (this.cpgEnabled && this.cpg && this.model.nu === 18) {
+          let targets = this.cpg.getTargets(this.simulation.time);
+          let ctrl = this.simulation.ctrl;
+          for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
         }
 
         this.simulation.step();

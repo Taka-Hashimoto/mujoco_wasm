@@ -1,0 +1,241 @@
+<mujoco model="phantomx_hexapod">
+  <!-- URDF RPY uses extrinsic XYZ convention -->
+  <compiler angle="radian" eulerseq="XYZ" meshdir="assets"/>
+
+  <option timestep="0.004" gravity="0 0 -9.81">
+    <flag contact="enable"/>
+  </option>
+
+  <default>
+    <joint type="hinge" damping="0" armature="0.01" limited="true"/>
+    <default class="visual">
+      <geom contype="0" conaffinity="0" group="1" density="0"
+            rgba="0.2 0.2 0.2 1"/>
+    </default>
+    <default class="collision">
+      <geom contype="2" conaffinity="1" group="3"
+            friction="1 0.005 0.001"
+            rgba="0.5 0.5 0.5 0.5"/>
+    </default>
+    <default class="leg">
+      <position kp="35" ctrllimited="true" ctrlrange="-2.618 2.618"
+                forcelimited="true" forcerange="-2.8 2.8"/>
+    </default>
+  </default>
+
+  <asset>
+    <mesh name="body" file="body.STL"/>
+    <mesh name="body_coll" file="body_coll.STL"/>
+    <mesh name="connect" file="connect.STL"/>
+    <mesh name="connect_coll" file="connect_coll.STL"/>
+    <mesh name="thigh_l" file="thigh_l.STL"/>
+    <mesh name="thigh_l_coll" file="thigh_l_coll.STL"/>
+    <mesh name="tibia_l" file="tibia_l.STL"/>
+    <mesh name="tibia_l_coll" file="tibia_l_coll.STL"/>
+    <texture type="2d" name="grid" builtin="checker" width="512" height="512"
+             rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4"/>
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light name="top" pos="0 0 2" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <light name="spotlight" mode="targetbodycom" target="MP_BODY"
+           pos="0.5 -0.5 1" diffuse="0.5 0.5 0.5"/>
+    <geom name="floor" type="plane" size="5 5 0.1" material="grid"
+          contype="1" conaffinity="1"/>
+
+    <body name="MP_BODY" pos="0 0 0.15">
+      <freejoint name="root"/>
+      <camera name="track" pos="0.5 -0.8 0.4" xyaxes="0.866 0.5 0 -0.2 0.35 0.92"
+              mode="trackcom"/>
+      <site name="imu_site" pos="0 0 0" size="0.01"/>
+      <geom type="mesh" mesh="body" class="visual"/>
+      <geom type="mesh" mesh="body_coll" class="collision" mass="0.976"/>
+      <!-- Leg rf -->
+      <body name="c1_rf" pos="0.1248 -0.06164 0.001116" euler="0 4.7123 0.7854">
+        <joint name="j_c1_rf" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_rf" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_rf" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_rf" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_rf" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_rf" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_rf_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_rf" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Leg rm -->
+      <body name="c1_rm" pos="0 -0.1034 0.001116" euler="0 4.7123 0">
+        <joint name="j_c1_rm" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_rm" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_rm" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_rm" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_rm" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_rm" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_rm_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_rm" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Leg rr -->
+      <body name="c1_rr" pos="-0.1248 -0.06164 0.001116" euler="0 4.7123 -0.7854">
+        <joint name="j_c1_rr" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_rr" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_rr" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_rr" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_rr" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_rr" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_rr_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_rr" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Leg lf -->
+      <body name="c1_lf" pos="0.1248 0.06164 0.001116" euler="0 4.7123 2.3562">
+        <joint name="j_c1_lf" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_lf" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_lf" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_lf" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_lf" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_lf" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_lf_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_lf" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Leg lm -->
+      <body name="c1_lm" pos="0 0.1034 0.001116" euler="0 4.7123 3.14159">
+        <joint name="j_c1_lm" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_lm" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_lm" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_lm" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_lm" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_lm" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_lm_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_lm" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <!-- Leg lr -->
+      <body name="c1_lr" pos="-0.1248 0.06164 0.001116" euler="0 4.7123 3.9270">
+        <joint name="j_c1_lr" axis="1 0 0" range="-2.618 2.618"/>
+        <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+        <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+        <body name="c2_lr" pos="0 -0.054 0" euler="0 1.5704 3.14159">
+          <geom type="mesh" mesh="connect" pos="0 -0.0252 0" class="visual"/>
+          <geom type="mesh" mesh="connect_coll" pos="0 -0.02633 0" class="collision" mass="0.024"/>
+          <body name="thigh_lr" pos="0 0 0" euler="0 3.14159 3.14159">
+            <joint name="j_thigh_lr" axis="1 0 0" range="-2.618 2.618"/>
+            <geom type="mesh" mesh="thigh_l" class="visual"/>
+            <geom type="mesh" mesh="thigh_l_coll" class="collision" mass="0.024"/>
+            <body name="tibia_lr" pos="0 -0.0645 -0.0145" euler="-1.5707 0 3.14159">
+              <joint name="j_tibia_lr" axis="1 0 0" range="-2.618 2.618"/>
+              <geom type="mesh" mesh="tibia_l" class="visual"/>
+              <geom type="mesh" mesh="tibia_l_coll" class="collision" mass="0.024"/>
+              <geom name="foot_lr_geom" type="sphere" size="0.012" pos="0 0.155 0.02"
+                    class="collision" mass="0.001"/>
+              <site name="foot_lr" pos="0 0.155 0.02" size="0.01" group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="j_c1_rf" joint="j_c1_rf" class="leg"/>
+    <position name="j_thigh_rf" joint="j_thigh_rf" class="leg"/>
+    <position name="j_tibia_rf" joint="j_tibia_rf" class="leg"/>
+    <position name="j_c1_rm" joint="j_c1_rm" class="leg"/>
+    <position name="j_thigh_rm" joint="j_thigh_rm" class="leg"/>
+    <position name="j_tibia_rm" joint="j_tibia_rm" class="leg"/>
+    <position name="j_c1_rr" joint="j_c1_rr" class="leg"/>
+    <position name="j_thigh_rr" joint="j_thigh_rr" class="leg"/>
+    <position name="j_tibia_rr" joint="j_tibia_rr" class="leg"/>
+    <position name="j_c1_lf" joint="j_c1_lf" class="leg"/>
+    <position name="j_thigh_lf" joint="j_thigh_lf" class="leg"/>
+    <position name="j_tibia_lf" joint="j_tibia_lf" class="leg"/>
+    <position name="j_c1_lm" joint="j_c1_lm" class="leg"/>
+    <position name="j_thigh_lm" joint="j_thigh_lm" class="leg"/>
+    <position name="j_tibia_lm" joint="j_tibia_lm" class="leg"/>
+    <position name="j_c1_lr" joint="j_c1_lr" class="leg"/>
+    <position name="j_thigh_lr" joint="j_thigh_lr" class="leg"/>
+    <position name="j_tibia_lr" joint="j_tibia_lr" class="leg"/>
+  </actuator>
+
+  <sensor>
+    <gyro name="gyro" site="imu_site"/>
+    <velocimeter name="local_linvel" site="imu_site"/>
+    <accelerometer name="accelerometer" site="imu_site"/>
+    <framezaxis name="upvector" objtype="site" objname="imu_site"/>
+    <framelinvel name="global_linvel" objtype="body" objname="MP_BODY"/>
+    <frameangvel name="global_angvel" objtype="body" objname="MP_BODY"/>
+    <framequat name="orientation" objtype="body" objname="MP_BODY"/>
+    <framepos name="foot_rf_pos" objtype="site" objname="foot_rf"/>
+    <framepos name="foot_rm_pos" objtype="site" objname="foot_rm"/>
+    <framepos name="foot_rr_pos" objtype="site" objname="foot_rr"/>
+    <framepos name="foot_lf_pos" objtype="site" objname="foot_lf"/>
+    <framepos name="foot_lm_pos" objtype="site" objname="foot_lm"/>
+    <framepos name="foot_lr_pos" objtype="site" objname="foot_lr"/>
+    <framelinvel name="foot_rf_linvel" objtype="site" objname="foot_rf"/>
+    <framelinvel name="foot_rm_linvel" objtype="site" objname="foot_rm"/>
+    <framelinvel name="foot_rr_linvel" objtype="site" objname="foot_rr"/>
+    <framelinvel name="foot_lf_linvel" objtype="site" objname="foot_lf"/>
+    <framelinvel name="foot_lm_linvel" objtype="site" objname="foot_lm"/>
+    <framelinvel name="foot_lr_linvel" objtype="site" objname="foot_lr"/>
+  </sensor>
+
+  <keyframe>
+    <key name="home" qpos="0 0 0.15 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl=" 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"/>
+  </keyframe>
+</mujoco>

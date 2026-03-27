@@ -45,6 +45,15 @@
   "shadow_hand/right_hand.xml",
   "shadow_hand/scene_left.xml",
   "shadow_hand/scene_right.xml",
+  "phantomx_hexapod/phantomx_hexapod.xml",
+  "phantomx_hexapod/assets/body.STL",
+  "phantomx_hexapod/assets/body_coll.STL",
+  "phantomx_hexapod/assets/connect.STL",
+  "phantomx_hexapod/assets/connect_coll.STL",
+  "phantomx_hexapod/assets/thigh_l.STL",
+  "phantomx_hexapod/assets/thigh_l_coll.STL",
+  "phantomx_hexapod/assets/tibia_l.STL",
+  "phantomx_hexapod/assets/tibia_l_coll.STL",
   "simple.xml",
   "slider_crank.xml"
 ]

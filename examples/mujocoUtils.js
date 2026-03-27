@@ -8,6 +8,12 @@ export async function reloadFunc() {
   [this.model, this.state, this.simulation, this.bodies, this.lights] =
     await loadSceneFromURL(this.mujoco, this.params.scene, this);
   this.simulation.forward();
+
+  // Enable CPG only for models with exactly 18 actuators (hexapod)
+  if (this.cpg) {
+    let isHexapod = this.model.nu === 18;
+    this.cpgEnabled = isHexapod && this.params.cpgEnabled;
+  }
   for (let i = 0; i < this.updateGUICallbacks.length; i++) {
     this.updateGUICallbacks[i](this.model, this.simulation, this.params);
   }
@@ -20,17 +26,39 @@ export function setupGUI(parentContext) {
   parentContext.updateGUICallbacks.length = 0;
   parentContext.updateGUICallbacks.push((model, simulation, params) => {
     // TODO: Use free camera parameters from MuJoCo
-    parentContext.camera.position.set(2.0, 1.7, 1.7);
-    parentContext.controls.target.set(0, 0.7, 0);
+    if (parentContext.params.scene.includes("phantomx_hexapod")) {
+      parentContext.camera.position.set(0.5, 0.4, 0.5);
+      parentContext.controls.target.set(0, 0.1, 0);
+    } else {
+      parentContext.camera.position.set(2.0, 1.7, 1.7);
+      parentContext.controls.target.set(0, 0.7, 0);
+    }
     parentContext.controls.update(); });
 
   // Add scene selection dropdown.
   let reload = reloadFunc.bind(parentContext);
   parentContext.gui.add(parentContext.params, 'scene', {
+    "Hexapod": "phantomx_hexapod/phantomx_hexapod.xml",
     "Humanoid": "humanoid.xml", "Cassie": "agility_cassie/scene.xml",
     "Hammock": "hammock.xml", "Balloons": "balloons.xml", "Hand": "shadow_hand/scene_right.xml",
     "Flag": "flag.xml", "Mug": "mug.xml", "Tendon": "model_with_tendon.xml"
   }).name('Example Scene').onChange(reload);
+
+  // --- Hexapod CPG Controls ---
+  if (parentContext.cpg) {
+    let cpgFolder = parentContext.gui.addFolder("CPG Locomotion");
+    cpgFolder.add(parentContext.params, 'cpgEnabled').name('Enable CPG').onChange((value) => {
+      parentContext.cpgEnabled = value;
+    });
+    cpgFolder.add(parentContext.params, 'gait', {
+      "Tripod (fast)": "tripod",
+      "Ripple (moderate)": "ripple",
+      "Wave (stable)": "wave"
+    }).name('Gait Pattern').onChange((value) => {
+      parentContext.cpg.setGait(value);
+    });
+    cpgFolder.open();
+  }
 
   // Add a help menu.
   // Parameters:
@@ -582,6 +610,15 @@ export async function downloadExampleScenesFolder(mujoco) {
     "simple.xml",
     "slider_crank.xml",
     "model_with_tendon.xml",
+    "phantomx_hexapod/phantomx_hexapod.xml",
+    "phantomx_hexapod/assets/body.STL",
+    "phantomx_hexapod/assets/body_coll.STL",
+    "phantomx_hexapod/assets/connect.STL",
+    "phantomx_hexapod/assets/connect_coll.STL",
+    "phantomx_hexapod/assets/thigh_l.STL",
+    "phantomx_hexapod/assets/thigh_l_coll.STL",
+    "phantomx_hexapod/assets/tibia_l.STL",
+    "phantomx_hexapod/assets/tibia_l_coll.STL",
   ];
 
   let requests = allFiles.map((url) => fetch("./examples/scenes/" + url));
@@ -595,7 +632,8 @@ export async function downloadExampleScenesFolder(mujoco) {
           working += "/";
       }
 
-      if (allFiles[i].endsWith(".png") || allFiles[i].endsWith(".stl") || allFiles[i].endsWith(".skn")) {
+      let lowerName = allFiles[i].toLowerCase();
+      if (lowerName.endsWith(".png") || lowerName.endsWith(".stl") || lowerName.endsWith(".skn")) {
           mujoco.FS.writeFile("/working/" + allFiles[i], new Uint8Array(await responses[i].arrayBuffer()));
       } else {
           mujoco.FS.writeFile("/working/" + allFiles[i], await responses[i].text());
