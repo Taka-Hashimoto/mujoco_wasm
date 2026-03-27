@@ -197,15 +197,19 @@ export class MuJoCoDemo {
     this.controls.update();
 
     // Read keyboard input for locomotion commands
+    let hasInput = false;
     let targetFwd  = 0.0;
     let targetTurn = 0.0;
-    if (this.keys['KeyW'] || this.keys['ArrowUp']   ) { targetFwd  += 1.0; }
-    if (this.keys['KeyS'] || this.keys['ArrowDown'] ) { targetFwd  -= 1.0; }
-    if (this.keys['KeyA'] || this.keys['ArrowLeft'] ) { targetTurn += 1.0; }
-    if (this.keys['KeyD'] || this.keys['ArrowRight']) { targetTurn -= 1.0; }
+    if (this.keys['KeyW'] || this.keys['ArrowUp']   ) { targetFwd  += 1.0; hasInput = true; }
+    if (this.keys['KeyS'] || this.keys['ArrowDown'] ) { targetFwd  -= 1.0; hasInput = true; }
+    if (this.keys['KeyA'] || this.keys['ArrowLeft'] ) { targetTurn += 1.0; hasInput = true; }
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) { targetTurn -= 1.0; hasInput = true; }
     // Merge circle-pad input (take whichever source has larger magnitude)
+    if (Math.abs(this.padForward) > 0.01 || Math.abs(this.padTurn) > 0.01) { hasInput = true; }
     if (Math.abs(this.padForward) > Math.abs(targetFwd))  { targetFwd  = this.padForward; }
     if (Math.abs(this.padTurn)    > Math.abs(targetTurn)) { targetTurn = this.padTurn; }
+    // Auto-walk forward when no user input
+    if (!hasInput) { targetFwd = 1.0; }
     // Smooth the commands for natural acceleration
     let alpha = 0.08;
     this.forward += (targetFwd  - this.forward) * alpha;
