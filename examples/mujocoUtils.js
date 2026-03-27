@@ -310,6 +310,41 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
     let state = parent.state;
     let simulation = parent.simulation;
 
+    // Populate heightfield with smooth terrain noise
+    if (model.nhfield > 0) {
+      let nrow = model.hfield_nrow[0];
+      let ncol = model.hfield_ncol[0];
+      let data = model.hfield_data;
+      for (let i = 0; i < nrow * ncol; i++) { data[i] = Math.random(); }
+      // Smooth 4 passes for natural terrain
+      for (let pass = 0; pass < 4; pass++) {
+        let tmp = new Float32Array(nrow * ncol);
+        for (let r = 0; r < nrow; r++) {
+          for (let c = 0; c < ncol; c++) {
+            let sum = 0, cnt = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+              for (let dc = -1; dc <= 1; dc++) {
+                let rr = r + dr, cc = c + dc;
+                if (rr >= 0 && rr < nrow && cc >= 0 && cc < ncol) {
+                  sum += data[rr * ncol + cc]; cnt++;
+                }
+              }
+            }
+            tmp[r * ncol + c] = sum / cnt;
+          }
+        }
+        for (let i = 0; i < nrow * ncol; i++) data[i] = tmp[i];
+      }
+      // Taper edges to zero for smooth boundary
+      let fade = 4;
+      for (let r = 0; r < nrow; r++) {
+        for (let c = 0; c < ncol; c++) {
+          let d = Math.min(r, nrow - 1 - r, c, ncol - 1 - c);
+          if (d < fade) data[r * ncol + c] *= d / fade;
+        }
+      }
+    }
+
     // Decode the null-terminated string names.
     let textDecoder = new TextDecoder("utf-8");
     let fullString = textDecoder.decode(model.names);
@@ -358,7 +393,20 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
       if (type == mujoco.mjtGeom.mjGEOM_PLANE.value) {
         // Special handling for plane later.
       } else if (type == mujoco.mjtGeom.mjGEOM_HFIELD.value) {
-        // TODO: Implement this.
+        let hfId = model.geom_dataid[g];
+        let nrow = model.hfield_nrow[hfId];
+        let ncol = model.hfield_ncol[hfId];
+        let xHalf = model.hfield_size[hfId * 4 + 0];
+        let yHalf = model.hfield_size[hfId * 4 + 1];
+        let zMax  = model.hfield_size[hfId * 4 + 2];
+        let zMin  = model.hfield_size[hfId * 4 + 3];
+        let hdata = model.hfield_data;
+        geometry = new THREE.PlaneGeometry(xHalf * 2, yHalf * 2, ncol - 1, nrow - 1);
+        let verts = geometry.attributes.position.array;
+        for (let i = 0; i < nrow * ncol; i++) {
+          verts[i * 3 + 2] = zMin + hdata[i] * (zMax - zMin);
+        }
+        geometry.computeVertexNormals();
       } else if (type == mujoco.mjtGeom.mjGEOM_SPHERE.value) {
         geometry = new THREE.SphereGeometry(size[0]);
       } else if (type == mujoco.mjtGeom.mjGEOM_CAPSULE.value) {
@@ -481,6 +529,10 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
       if (type == 0) {
         mesh = new THREE.Mesh(new THREE.PlaneGeometry( 100, 100 ), material);
         mesh.rotateX( - Math.PI / 2 );
+      } else if (type == 1) {
+        // Heightfield: rotate to horizontal like plane
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotateX( - Math.PI / 2 );
       } else {
         mesh = new THREE.Mesh(geometry, material);
       }
@@ -490,7 +542,7 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
       mesh.bodyID = b;
       bodies[b].add(mesh);
       getPosition  (model.geom_pos, g, mesh.position  );
-      if (type != 0) { getQuaternion(model.geom_quat, g, mesh.quaternion); }
+      if (type != 0 && type != 1) { getQuaternion(model.geom_quat, g, mesh.quaternion); }
       if (type == 4) { mesh.scale.set(size[0], size[2], size[1]) } // Stretch the Ellipsoid
     }
 
