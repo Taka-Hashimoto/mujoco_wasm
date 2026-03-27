@@ -43,15 +43,15 @@ export class MuJoCoDemo {
     this.keys = {};
     this.forward = 0.0;
     this.turn = 0.0;
+    this.padForward = 0.0;
+    this.padTurn = 0.0;
     document.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
-      // Blur GUI inputs so keyboard events always reach the simulation
       if (document.activeElement && document.activeElement.tagName === 'INPUT') {
         document.activeElement.blur();
       }
     });
     document.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
-    // Also clear keys when window loses focus (e.g. iframe → parent)
     window.addEventListener('blur', () => { this.keys = {}; });
 
     this.container = document.createElement( 'div' );
@@ -107,18 +107,84 @@ export class MuJoCoDemo {
     this.gui = new GUI();
     setupGUI(this);
 
-    // On-screen control hints
-    let hint = document.createElement('div');
-    hint.innerHTML =
-      '<div style="display:grid;grid-template-columns:repeat(3,36px);grid-template-rows:repeat(2,36px);gap:3px;font:bold 14px monospace;text-align:center;line-height:36px">' +
-      '<div></div><div id="k-w" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">W</div><div></div>' +
-      '<div id="k-a" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">A</div>' +
-      '<div id="k-s" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">S</div>' +
-      '<div id="k-d" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">D</div></div>' +
-      '<div style="margin-top:6px;font:11px sans-serif;color:rgba(255,255,255,0.5)">W/S: forward/back &nbsp; A/D: turn</div>';
-    hint.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:100;pointer-events:none;user-select:none';
-    document.body.appendChild(hint);
-    this.hintKeys = { w: document.getElementById('k-w'), a: document.getElementById('k-a'), s: document.getElementById('k-s'), d: document.getElementById('k-d') };
+    // ── Virtual circle pad (touch + mouse) ──
+    this._createCirclePad();
+  }
+
+  _createCirclePad() {
+    const SIZE = 130, KNOB = 50, MAX_DIST = (SIZE - KNOB) / 2;
+
+    let wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;bottom:18px;left:18px;z-index:200;user-select:none';
+
+    let base = document.createElement('div');
+    base.style.cssText =
+      `width:${SIZE}px;height:${SIZE}px;border-radius:50%;` +
+      'background:rgba(255,255,255,0.07);border:2px solid rgba(255,255,255,0.22);' +
+      'position:relative;touch-action:none';
+
+    let knob = document.createElement('div');
+    let knobOff = (SIZE - KNOB) / 2;
+    knob.style.cssText =
+      `width:${KNOB}px;height:${KNOB}px;border-radius:50%;` +
+      'background:rgba(255,255,255,0.35);position:absolute;' +
+      `top:${knobOff}px;left:${knobOff}px;pointer-events:none;` +
+      'transition:background 0.1s';
+
+    base.appendChild(knob);
+    wrap.appendChild(base);
+
+    // Small label
+    let label = document.createElement('div');
+    label.textContent = 'Drag to move';
+    label.style.cssText = 'text-align:center;margin-top:6px;font:11px sans-serif;color:rgba(255,255,255,0.4)';
+    wrap.appendChild(label);
+
+    document.body.appendChild(wrap);
+
+    // ── Interaction logic ──
+    let active = false, centerX = 0, centerY = 0;
+    const self = this;
+
+    const start = (cx, cy) => {
+      let r = base.getBoundingClientRect();
+      centerX = r.left + SIZE / 2;
+      centerY = r.top  + SIZE / 2;
+      active = true;
+      knob.style.background = 'rgba(180,230,80,0.55)';
+      move(cx, cy);
+    };
+
+    const move = (cx, cy) => {
+      if (!active) return;
+      let dx = cx - centerX, dy = cy - centerY;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > MAX_DIST) { dx = dx / dist * MAX_DIST; dy = dy / dist * MAX_DIST; }
+      knob.style.left = (knobOff + dx) + 'px';
+      knob.style.top  = (knobOff + dy) + 'px';
+      self.padForward = -dy / MAX_DIST;   // up = forward
+      self.padTurn    = -dx / MAX_DIST;   // left = turn left (+)
+    };
+
+    const end = () => {
+      active = false;
+      knob.style.left = knobOff + 'px';
+      knob.style.top  = knobOff + 'px';
+      knob.style.background = 'rgba(255,255,255,0.35)';
+      self.padForward = 0;
+      self.padTurn    = 0;
+    };
+
+    // Touch
+    base.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); start(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+    base.addEventListener('touchmove',  (e) => { e.preventDefault(); e.stopPropagation(); move(e.touches[0].clientX, e.touches[0].clientY); },  { passive: false });
+    base.addEventListener('touchend',   (e) => { e.preventDefault(); end(); }, { passive: false });
+    base.addEventListener('touchcancel', () => { end(); });
+
+    // Mouse (desktop fallback)
+    base.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); start(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', (e) => { move(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', () => { if (active) end(); });
   }
 
   onWindowResize() {
@@ -137,6 +203,9 @@ export class MuJoCoDemo {
     if (this.keys['KeyS'] || this.keys['ArrowDown'] ) { targetFwd  -= 1.0; }
     if (this.keys['KeyA'] || this.keys['ArrowLeft'] ) { targetTurn += 1.0; }
     if (this.keys['KeyD'] || this.keys['ArrowRight']) { targetTurn -= 1.0; }
+    // Merge circle-pad input (take whichever source has larger magnitude)
+    if (Math.abs(this.padForward) > Math.abs(targetFwd))  { targetFwd  = this.padForward; }
+    if (Math.abs(this.padTurn)    > Math.abs(targetTurn)) { targetTurn = this.padTurn; }
     // Smooth the commands for natural acceleration
     let alpha = 0.08;
     this.forward += (targetFwd  - this.forward) * alpha;
@@ -144,16 +213,6 @@ export class MuJoCoDemo {
     // Deadzone: snap to zero when very small
     if (Math.abs(this.forward) < 0.01) { this.forward = 0.0; }
     if (Math.abs(this.turn)    < 0.01) { this.turn    = 0.0; }
-
-    // Update control hint key highlights
-    if (this.hintKeys) {
-      let on = 'background:rgba(180,230,80,0.6);border-radius:5px;color:#fff';
-      let off = 'background:rgba(255,255,255,0.15);border-radius:5px;color:#fff';
-      this.hintKeys.w.style.cssText = (this.keys['KeyW'] || this.keys['ArrowUp'])    ? on : off;
-      this.hintKeys.a.style.cssText = (this.keys['KeyA'] || this.keys['ArrowLeft'])  ? on : off;
-      this.hintKeys.s.style.cssText = (this.keys['KeyS'] || this.keys['ArrowDown'])  ? on : off;
-      this.hintKeys.d.style.cssText = (this.keys['KeyD'] || this.keys['ArrowRight']) ? on : off;
-    }
 
     if (!this.params["paused"]) {
       let timestep = this.model.getOptions().timestep;
@@ -300,23 +359,25 @@ export class MuJoCoDemo {
       this.camera.position.copy(this.controls.target).add(camOffset);
     }
 
-    // Update light transforms — lights follow the hexapod body so it stays lit.
-    for (let l = 0; l < this.model.nlight; l++) {
-      if (this.lights[l]) {
-        getPosition(this.simulation.light_xpos, l, this.lights[l].position);
-        getPosition(this.simulation.light_xdir, l, this.tmpVec);
-        // Offset light position to follow the robot body
-        if (this.cpgEnabled && this.bodies[1]) {
-          let bp = this.bodies[1].position;
-          this.lights[l].position.x += bp.x;
-          this.lights[l].position.z += bp.z;
-          this.tmpVec.x += bp.x;
-          this.tmpVec.z += bp.z;
+    // Update light transforms.
+    if (this.cpgEnabled && this.bodies[1]) {
+      // Place all lights directly above the hexapod body
+      let bp = this.bodies[1].position;
+      for (let l = 0; l < this.lights.length; l++) {
+        if (this.lights[l]) {
+          this.lights[l].position.set(bp.x, bp.y + 2.0, bp.z);
+          if (this.lights[l].target) {
+            this.lights[l].target.position.set(bp.x, bp.y, bp.z);
+            this.lights[l].target.updateMatrixWorld();
+          }
         }
-        this.lights[l].lookAt(this.tmpVec.add(this.lights[l].position));
-        // Update shadow camera for moving lights
-        if (this.lights[l].shadow) {
-          this.lights[l].shadow.camera.updateProjectionMatrix();
+      }
+    } else {
+      for (let l = 0; l < this.model.nlight; l++) {
+        if (this.lights[l]) {
+          getPosition(this.simulation.light_xpos, l, this.lights[l].position);
+          getPosition(this.simulation.light_xdir, l, this.tmpVec);
+          this.lights[l].lookAt(this.tmpVec.add(this.lights[l].position));
         }
       }
     }
