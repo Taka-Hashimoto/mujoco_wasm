@@ -300,12 +300,24 @@ export class MuJoCoDemo {
       this.camera.position.copy(this.controls.target).add(camOffset);
     }
 
-    // Update light transforms.
+    // Update light transforms — lights follow the hexapod body so it stays lit.
     for (let l = 0; l < this.model.nlight; l++) {
       if (this.lights[l]) {
         getPosition(this.simulation.light_xpos, l, this.lights[l].position);
         getPosition(this.simulation.light_xdir, l, this.tmpVec);
+        // Offset light position to follow the robot body
+        if (this.cpgEnabled && this.bodies[1]) {
+          let bp = this.bodies[1].position;
+          this.lights[l].position.x += bp.x;
+          this.lights[l].position.z += bp.z;
+          this.tmpVec.x += bp.x;
+          this.tmpVec.z += bp.z;
+        }
         this.lights[l].lookAt(this.tmpVec.add(this.lights[l].position));
+        // Update shadow camera for moving lights
+        if (this.lights[l].shadow) {
+          this.lights[l].shadow.camera.updateProjectionMatrix();
+        }
       }
     }
 
