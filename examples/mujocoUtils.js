@@ -9,7 +9,8 @@ export async function reloadFunc() {
     await loadSceneFromURL(this.mujoco, this.params.scene, this);
   this.simulation.forward();
 
-  // Enable CPG only for models with exactly 18 actuators (hexapod)
+  // Reset simulation time and enable CPG only for hexapod (18 actuators)
+  this.simTime = 0.0;
   if (this.cpg) {
     let isHexapod = this.model.nu === 18;
     this.cpgEnabled = isHexapod && this.params.cpgEnabled;
@@ -207,6 +208,7 @@ export function setupGUI(parentContext) {
   const resetSimulation = () => {
     parentContext.simulation.resetData();
     parentContext.simulation.forward();
+    parentContext.simTime = 0.0;
   };
   simulationFolder.add({reset: () => { resetSimulation(); }}, 'reset').name('Reset');
   document.addEventListener('keydown', (event) => {

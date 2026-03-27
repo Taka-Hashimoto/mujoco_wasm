@@ -31,6 +31,7 @@ export class MuJoCoDemo {
     this.params = { scene: initialScene, paused: false, help: false, ctrlnoiserate: 0.0, ctrlnoisestd: 0.0, keyframeNumber: 0, cpgEnabled: true, gait: "tripod" };
     this.cpg = new HexapodCPG("tripod");
     this.cpgEnabled = true;
+    this.simTime = 0.0;         // simulation time in seconds (for CPG)
     this.mujoco_time = 0.0;
     this.bodies  = {}, this.lights = {};
     this.tmpVec  = new THREE.Vector3();
@@ -138,12 +139,13 @@ export class MuJoCoDemo {
 
         // Apply CPG control targets for hexapod locomotion
         if (this.cpgEnabled && this.cpg && this.model.nu === 18) {
-          let targets = this.cpg.getTargets(this.simulation.time);
+          let targets = this.cpg.getTargets(this.simTime);
           let ctrl = this.simulation.ctrl;
           for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
         }
 
         this.simulation.step();
+        this.simTime += timestep;
 
         this.mujoco_time += timestep * 1000.0;
       }
