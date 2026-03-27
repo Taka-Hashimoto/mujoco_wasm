@@ -138,10 +138,17 @@ export class MuJoCoDemo {
         }
 
         // Apply CPG control targets for hexapod locomotion
+        // Wait for settling period before starting CPG
         if (this.cpgEnabled && this.cpg && this.model.nu === 18) {
-          let targets = this.cpg.getTargets(this.simTime);
-          let ctrl = this.simulation.ctrl;
-          for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
+          if (this.simTime < 2.0) {
+            // Hold default pose (ctrl = 0) to let the robot settle on the ground
+            let ctrl = this.simulation.ctrl;
+            for (let i = 0; i < 18; i++) { ctrl[i] = 0.0; }
+          } else {
+            let targets = this.cpg.getTargets(this.simTime - 2.0);
+            let ctrl = this.simulation.ctrl;
+            for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
+          }
         }
 
         this.simulation.step();
