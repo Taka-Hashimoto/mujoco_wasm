@@ -108,17 +108,30 @@ export class HexapodCPG {
     if (!this.gait) { throw new Error("Unknown gait: " + gaitName); }
   }
 
-  /** Return 18-dim joint-position targets for time t (seconds). */
-  getTargets(t) {
+  /**
+   * Return 18-dim joint-position targets for time t (seconds).
+   * @param {number} t      - elapsed time in seconds
+   * @param {number} forward - forward/backward speed in [-1, 1] (1=full forward)
+   * @param {number} turn    - turning command in [-1, 1] (positive=left, negative=right)
+   */
+  getTargets(t, forward = 1.0, turn = 0.0) {
     const g = this.gait;
     for (let i = 0; i < 6; i++) {
+      // Per-leg speed factor: differential drive for turning
+      // Right legs (0,1,2): forward + turn  → turn>0 means right side faster → turns left
+      // Left  legs (3,4,5): forward - turn  → turn>0 means left side slower  → turns left
+      const isRight = i < 3;
+      const speed = isRight ? (forward + turn) : (forward - turn);
+      const absSpeed = Math.min(Math.abs(speed), 1.0);
+
       const phi = TWO_PI * g.freq * t + g.phaseOffsets[i];
       const coxa  = coxaSignal(phi, g.dutyFactor);
       const swing = swingSignal(phi, g.dutyFactor);
       const idx = i * 3;
-      this.targets[idx + 0] = COXA_SIGN[i] * g.coxaAmp * coxa;
-      this.targets[idx + 1] = -g.thighAmp * swing;    // negative = lift
-      this.targets[idx + 2] =  g.tibiaAmp * swing;    // positive = retract
+
+      this.targets[idx + 0] = COXA_SIGN[i] * g.coxaAmp * speed * coxa;
+      this.targets[idx + 1] = -g.thighAmp * absSpeed * swing;
+      this.targets[idx + 2] =  g.tibiaAmp * absSpeed * swing;
     }
     return this.targets;
   }

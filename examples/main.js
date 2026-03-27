@@ -32,11 +32,19 @@ export class MuJoCoDemo {
     this.cpg = new HexapodCPG("tripod");
     this.cpgEnabled = true;
     this.simTime = 0.0;         // simulation time in seconds (for CPG)
+    this.cpgTime = 0.0;         // CPG phase time (only advances when moving)
     this.mujoco_time = 0.0;
     this.bodies  = {}, this.lights = {};
     this.tmpVec  = new THREE.Vector3();
     this.tmpQuat = new THREE.Quaternion();
     this.updateGUICallbacks = [];
+
+    // Keyboard state for locomotion control
+    this.keys = {};
+    this.forward = 0.0;
+    this.turn = 0.0;
+    document.addEventListener('keydown', (e) => { this.keys[e.code] = true;  });
+    document.addEventListener('keyup',   (e) => { this.keys[e.code] = false; });
 
     this.container = document.createElement( 'div' );
     document.body.appendChild( this.container );
@@ -90,6 +98,19 @@ export class MuJoCoDemo {
 
     this.gui = new GUI();
     setupGUI(this);
+
+    // On-screen control hints
+    let hint = document.createElement('div');
+    hint.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(3,36px);grid-template-rows:repeat(2,36px);gap:3px;font:bold 14px monospace;text-align:center;line-height:36px">' +
+      '<div></div><div id="k-w" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">W</div><div></div>' +
+      '<div id="k-a" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">A</div>' +
+      '<div id="k-s" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">S</div>' +
+      '<div id="k-d" style="background:rgba(255,255,255,0.15);border-radius:5px;color:#fff">D</div></div>' +
+      '<div style="margin-top:6px;font:11px sans-serif;color:rgba(255,255,255,0.5)">W/S: forward/back &nbsp; A/D: turn</div>';
+    hint.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:100;pointer-events:none;user-select:none';
+    document.body.appendChild(hint);
+    this.hintKeys = { w: document.getElementById('k-w'), a: document.getElementById('k-a'), s: document.getElementById('k-s'), d: document.getElementById('k-d') };
   }
 
   onWindowResize() {
@@ -100,6 +121,31 @@ export class MuJoCoDemo {
 
   render(timeMS) {
     this.controls.update();
+
+    // Read keyboard input for locomotion commands
+    let targetFwd  = 0.0;
+    let targetTurn = 0.0;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']   ) { targetFwd  += 1.0; }
+    if (this.keys['KeyS'] || this.keys['ArrowDown'] ) { targetFwd  -= 1.0; }
+    if (this.keys['KeyA'] || this.keys['ArrowLeft'] ) { targetTurn += 1.0; }
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) { targetTurn -= 1.0; }
+    // Smooth the commands for natural acceleration
+    let alpha = 0.08;
+    this.forward += (targetFwd  - this.forward) * alpha;
+    this.turn    += (targetTurn - this.turn)    * alpha;
+    // Deadzone: snap to zero when very small
+    if (Math.abs(this.forward) < 0.01) { this.forward = 0.0; }
+    if (Math.abs(this.turn)    < 0.01) { this.turn    = 0.0; }
+
+    // Update control hint key highlights
+    if (this.hintKeys) {
+      let on = 'background:rgba(180,230,80,0.6);border-radius:5px;color:#fff';
+      let off = 'background:rgba(255,255,255,0.15);border-radius:5px;color:#fff';
+      this.hintKeys.w.style.cssText = (this.keys['KeyW'] || this.keys['ArrowUp'])    ? on : off;
+      this.hintKeys.a.style.cssText = (this.keys['KeyA'] || this.keys['ArrowLeft'])  ? on : off;
+      this.hintKeys.s.style.cssText = (this.keys['KeyS'] || this.keys['ArrowDown'])  ? on : off;
+      this.hintKeys.d.style.cssText = (this.keys['KeyD'] || this.keys['ArrowRight']) ? on : off;
+    }
 
     if (!this.params["paused"]) {
       let timestep = this.model.getOptions().timestep;
@@ -138,16 +184,24 @@ export class MuJoCoDemo {
         }
 
         // Apply CPG control targets for hexapod locomotion
-        // Wait for settling period before starting CPG
         if (this.cpgEnabled && this.cpg && this.model.nu === 18) {
           if (this.simTime < 2.0) {
             // Hold default pose (ctrl = 0) to let the robot settle on the ground
             let ctrl = this.simulation.ctrl;
             for (let i = 0; i < 18; i++) { ctrl[i] = 0.0; }
           } else {
-            let targets = this.cpg.getTargets(this.simTime - 2.0);
-            let ctrl = this.simulation.ctrl;
-            for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
+            let isMoving = Math.abs(this.forward) > 0.0 || Math.abs(this.turn) > 0.0;
+            if (isMoving) {
+              // Advance CPG phase only while moving
+              this.cpgTime += timestep;
+              let targets = this.cpg.getTargets(this.cpgTime, this.forward, this.turn);
+              let ctrl = this.simulation.ctrl;
+              for (let i = 0; i < 18; i++) { ctrl[i] = targets[i]; }
+            } else {
+              // Idle: hold default pose
+              let ctrl = this.simulation.ctrl;
+              for (let i = 0; i < 18; i++) { ctrl[i] = 0.0; }
+            }
           }
         }
 
@@ -228,6 +282,14 @@ export class MuJoCoDemo {
         getQuaternion(this.simulation.xquat, b, this.bodies[b].quaternion);
         this.bodies[b].updateWorldMatrix();
       }
+    }
+
+    // Camera follows the hexapod body (MP_BODY = body index 1)
+    if (this.cpgEnabled && this.bodies[1]) {
+      let bodyPos = this.bodies[1].position;
+      let camOffset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+      this.controls.target.lerp(bodyPos, 0.05);
+      this.camera.position.copy(this.controls.target).add(camOffset);
     }
 
     // Update light transforms.
