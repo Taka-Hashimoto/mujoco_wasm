@@ -479,21 +479,7 @@ export async function loadSceneFromURL(mujoco, filename, parent) {
 
       let mesh = new THREE.Mesh();
       if (type == 0) {
-        // Floor plane with vertex displacement for bumpy terrain look
-        let seg = 120;
-        let planeGeo = new THREE.PlaneGeometry(100, 100, seg, seg);
-        let verts = planeGeo.attributes.position.array;
-        // Seed-based noise for consistent terrain
-        for (let i = 0; i < verts.length; i += 3) {
-          let x = verts[i], y = verts[i + 1];
-          // Multi-octave value noise
-          let h = Math.sin(x * 1.7 + y * 0.9) * 0.003
-                + Math.sin(x * 3.1 - y * 2.3) * 0.002
-                + Math.sin(x * 7.2 + y * 5.8) * 0.001;
-          verts[i + 2] = h;
-        }
-        planeGeo.computeVertexNormals();
-        mesh = new THREE.Mesh(planeGeo, material);
+        mesh = new THREE.Mesh(new THREE.PlaneGeometry( 100, 100 ), material);
         mesh.rotateX( - Math.PI / 2 );
       } else {
         mesh = new THREE.Mesh(geometry, material);
